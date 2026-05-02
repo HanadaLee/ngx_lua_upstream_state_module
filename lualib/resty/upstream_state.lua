@@ -1,0 +1,184 @@
+local ffi = require("ffi")
+local base = require("resty.core.base")
+local get_request = base.get_request
+local C = ffi.C
+local ngx = ngx
+local ngx_var = ngx.var
+local subsystem = ngx.config.subsystem
+local NGX_ERROR = ngx.ERROR
+
+
+base.allows_subsystem("http", "stream")
+
+
+local ngx_lua_push_upstream_state
+local ngx_lua_update_upstream_state
+local ngx_lua_set_upstream_scheme
+local ngx_lua_set_upstream_request_method
+if subsystem == "http" then
+    ffi.cdef[[
+    ngx_int_t ngx_http_lua_push_upstream_state(ngx_http_request_t *r,
+        const u_char *addr, size_t addr_len, ngx_int_t status,
+        ngx_msec_int_t connect_time_ms, ngx_msec_int_t header_time_ms,
+        ngx_msec_int_t start_msec, ngx_msec_int_t ssl_start_msec,
+        ngx_msec_int_t send_start_msec, ngx_msec_int_t send_end_msec);
+    ngx_int_t ngx_http_lua_update_upstream_state(ngx_http_request_t *r,
+        ngx_msec_int_t response_time_ms, off_t response_length,
+        off_t bytes_received);
+    ngx_int_t ngx_http_lua_set_upstream_scheme(ngx_http_request_t *r,
+        const u_char *scheme, size_t scheme_len);
+    ngx_int_t ngx_http_lua_set_upstream_request_method(ngx_http_request_t *r,
+        const u_char *method, size_t method_len);
+    ]]
+
+    ngx_lua_push_upstream_state = C.ngx_http_lua_push_upstream_state
+    ngx_lua_update_upstream_state = C.ngx_http_lua_update_upstream_state
+    ngx_lua_set_upstream_scheme = C.ngx_http_lua_set_upstream_scheme
+    ngx_lua_set_upstream_request_method = C.ngx_http_lua_set_upstream_request_method
+
+elseif subsystem == "stream" then
+    ffi.cdef[[
+    ngx_int_t ngx_stream_lua_push_upstream_state(ngx_http_request_t *r,
+        const u_char *addr, size_t addr_len, ngx_int_t status,
+        ngx_msec_int_t connect_time_ms, ngx_msec_int_t first_byte_time_ms,
+        ngx_msec_int_t start_msec, ngx_msec_int_t ssl_start_msec,
+        ngx_msec_int_t send_start_msec, ngx_msec_int_t send_end_msec);
+    ngx_int_t ngx_stream_lua_update_upstream_state(ngx_stream_lua_request_t *r,
+        ngx_msec_int_t session_time_ms, off_t bytes_sent, off_t bytes_received);
+    ]]
+
+    ngx_lua_push_upstream_state = C.ngx_stream_lua_push_upstream_state
+    ngx_lua_update_upstream_state = C.ngx_stream_lua_update_upstream_state
+    -- not supported in stream subsystem
+    ngx_lua_set_upstream_scheme = nil
+    ngx_lua_set_upstream_request_method = nil
+end
+
+
+local _M = {}
+
+
+function _M.push_upstream_state(opts)
+    if type(opts) ~= "table" then
+        return nil, "opts must be a table"
+    end
+
+    local r = get_request()
+    if not r then
+        return nil, "no request found"
+    end
+
+    local addr = opts.addr
+    if addr ~= nil and type(addr) ~= "string" then
+        return nil, "addr must be a string"
+    end
+
+    local addr_len = addr and #addr or 0
+    local header_time_ms = subsystem == "http" and opts.header_time or opts.first_byte_time
+
+    local rc = ngx_lua_push_upstream_state(
+        r,
+        addr, addr_len,
+        opts.status or 0,
+        opts.connect_time or -1,
+        header_time_ms or -1,
+        opts.start_msec or -1,
+        opts.ssl_start_msec or -1,
+        opts.send_start_msec or -1,
+        opts.send_end_msec or -1)
+
+    if rc == NGX_ERROR then
+        return nil, "error while pushing upstream state"
+    end
+
+    return true
+end
+
+
+function _M.update_upstream_state(opts)
+    if type(opts) ~= "table" then
+        return nil, "opts must be a table"
+    end
+
+    local r = get_request()
+    if not r then
+        return nil, "no request found"
+    end
+
+    local response_length = subsystem == "http" and opts.response_length or opts.bytes_received
+
+    local rc = ngx_lua_update_upstream_state(
+        r,
+        opts.response_time or -1,
+        response_length or -1,
+        opts.bytes_sent or -1)
+
+    if rc == NGX_ERROR then
+        return nil, "error while updating upstream state"
+    end
+
+    return true
+end
+
+
+-- must add config `set $upstream_scheme "";` before use this function in stream subsystem
+function _M.set_upstream_scheme(scheme)
+    if type(scheme) ~= "string" then
+        return nil, "scheme must be a string"
+    end
+
+    if subsystem == "stream" then
+        ngx_var.upstream_scheme = scheme
+        return true
+    end
+
+    local r = get_request()
+    if not r then
+        return nil, "no request found"
+    end
+
+    if not ngx_lua_set_upstream_scheme then
+        return nil, "not supported in stream subsystem"
+    end
+
+    local rc = ngx_lua_set_upstream_scheme(r, scheme, #scheme)
+
+    if rc == NGX_ERROR then
+        return nil, "error while setting upstream scheme"
+    end
+
+    return true
+end
+
+
+-- must add config `set $upstream_request_method "";` before use this function in stream subsystem
+function _M.set_upstream_request_method(method)
+    if type(method) ~= "string" then
+        return nil, "method must be a string"
+    end
+
+    if subsystem == "stream" then
+        ngx_var.upstream_request_method = method
+        return true
+    end
+
+    local r = get_request()
+    if not r then
+        return nil, "no request found"
+    end
+
+    if not ngx_lua_set_upstream_request_method then
+        return nil, "not supported in stream subsystem"
+    end
+
+    local rc = ngx_lua_set_upstream_request_method(r, method, #method)
+
+    if rc == NGX_ERROR then
+        return nil, "error while setting upstream request method"
+    end
+
+    return true
+end
+
+
+return _M
