@@ -207,7 +207,12 @@ ngx_http_lua_set_upstream_request_method(ngx_http_request_t *r,
 
     u = r->upstream;
 
-    u->method.data = (u_char *) method;
+    u->method.data = ngx_pnalloc(r->pool, method_len);
+    if (u->method.data == NULL) {
+        return NGX_ERROR;
+    }
+
+    ngx_memcpy(u->method.data, method, method_len);
     u->method.len = method_len;
 
     return NGX_OK;
