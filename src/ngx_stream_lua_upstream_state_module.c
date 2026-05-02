@@ -34,7 +34,7 @@ ngx_module_t  ngx_stream_lua_upstream_state_module = {
 
 
 ngx_int_t
-ngx_stream_lua_push_upstream_state(ngx_http_request_t *r,
+ngx_stream_lua_push_upstream_state(ngx_stream_lua_request_t *r,
     const u_char *addr, size_t addr_len, ngx_int_t status,
     ngx_msec_int_t connect_time_ms, ngx_msec_int_t first_byte_time_ms,
     ngx_msec_int_t start_msec, ngx_msec_int_t ssl_start_msec,

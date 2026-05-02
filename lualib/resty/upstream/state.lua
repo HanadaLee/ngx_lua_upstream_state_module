@@ -4,19 +4,19 @@ local get_request = base.get_request
 local C = ffi.C
 local ngx = ngx
 local ngx_var = ngx.var
-local subsystem = ngx.config.subsystem
 local NGX_ERROR = ngx.ERROR
-
-
-base.allows_subsystem("http", "stream")
+local subsystem = ngx.config.subsystem
+local is_http = subsystem == "http"
+local is_stream = subsystem == "stream"
 
 
 local ngx_lua_push_upstream_state
 local ngx_lua_update_upstream_state
 local ngx_lua_set_upstream_scheme
 local ngx_lua_set_upstream_request_method
-if subsystem == "http" then
+if is_http then
     ffi.cdef[[
+    typedef intptr_t        ngx_int_t;
     ngx_int_t ngx_http_lua_push_upstream_state(ngx_http_request_t *r,
         const u_char *addr, size_t addr_len, ngx_int_t status,
         ngx_msec_int_t connect_time_ms, ngx_msec_int_t header_time_ms,
@@ -36,9 +36,10 @@ if subsystem == "http" then
     ngx_lua_set_upstream_scheme = C.ngx_http_lua_set_upstream_scheme
     ngx_lua_set_upstream_request_method = C.ngx_http_lua_set_upstream_request_method
 
-elseif subsystem == "stream" then
+elseif is_stream then
     ffi.cdef[[
-    ngx_int_t ngx_stream_lua_push_upstream_state(ngx_http_request_t *r,
+    typedef intptr_t        ngx_int_t;
+    ngx_int_t ngx_stream_lua_push_upstream_state(ngx_stream_lua_request_t *r,
         const u_char *addr, size_t addr_len, ngx_int_t status,
         ngx_msec_int_t connect_time_ms, ngx_msec_int_t first_byte_time_ms,
         ngx_msec_int_t start_msec, ngx_msec_int_t ssl_start_msec,
@@ -74,7 +75,7 @@ function _M.push_upstream_state(opts)
     end
 
     local addr_len = addr and #addr or 0
-    local header_time_ms = subsystem == "http" and opts.header_time or opts.first_byte_time
+    local header_time_ms = is_http and opts.header_time or opts.first_byte_time
 
     local rc = ngx_lua_push_upstream_state(
         r,
@@ -105,7 +106,7 @@ function _M.update_upstream_state(opts)
         return nil, "no request found"
     end
 
-    local response_length = subsystem == "http" and opts.response_length or opts.bytes_received
+    local response_length = is_http and opts.response_length or opts.bytes_received
 
     local rc = ngx_lua_update_upstream_state(
         r,
@@ -127,7 +128,7 @@ function _M.set_upstream_scheme(scheme)
         return nil, "scheme must be a string"
     end
 
-    if subsystem == "stream" then
+    if is_stream then
         ngx_var.upstream_scheme = scheme
         return true
     end
@@ -157,7 +158,7 @@ function _M.set_upstream_request_method(method)
         return nil, "method must be a string"
     end
 
-    if subsystem == "stream" then
+    if is_stream then
         ngx_var.upstream_request_method = method
         return true
     end
