@@ -15,7 +15,7 @@ ngx_int_t ngx_http_lua_update_upstream_state(ngx_http_request_t *r,
     off_t bytes_received);
 ngx_int_t ngx_http_lua_set_upstream_scheme(ngx_http_request_t *r,
     const u_char *scheme, size_t scheme_len);
-ngx_int_t ngx_http_lua_set_upstream_request_method(ngx_http_request_t *r,
+ngx_int_t ngx_http_lua_set_upstream_method(ngx_http_request_t *r,
     const u_char *method, size_t method_len);
 
 

@@ -194,7 +194,7 @@ ngx_http_lua_set_upstream_scheme(ngx_http_request_t *r,
 
 
 ngx_int_t
-ngx_http_lua_set_upstream_request_method(ngx_http_request_t *r,
+ngx_http_lua_set_upstream_method(ngx_http_request_t *r,
     const u_char *method, size_t method_len)
 {
     ngx_http_upstream_t  *u;

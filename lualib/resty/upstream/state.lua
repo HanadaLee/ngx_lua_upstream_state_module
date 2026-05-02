@@ -13,7 +13,7 @@ local is_stream = subsystem == "stream"
 local ngx_lua_push_upstream_state
 local ngx_lua_update_upstream_state
 local ngx_lua_set_upstream_scheme
-local ngx_lua_set_upstream_request_method
+local ngx_lua_set_upstream_method
 if is_http then
     ffi.cdef[[
     typedef intptr_t        ngx_int_t;
@@ -27,14 +27,14 @@ if is_http then
         intptr_t bytes_received);
     ngx_int_t ngx_http_lua_set_upstream_scheme(ngx_http_request_t *r,
         const char *scheme, size_t scheme_len);
-    ngx_int_t ngx_http_lua_set_upstream_request_method(ngx_http_request_t *r,
+    ngx_int_t ngx_http_lua_set_upstream_method(ngx_http_request_t *r,
         const char *method, size_t method_len);
     ]]
 
     ngx_lua_push_upstream_state = C.ngx_http_lua_push_upstream_state
     ngx_lua_update_upstream_state = C.ngx_http_lua_update_upstream_state
     ngx_lua_set_upstream_scheme = C.ngx_http_lua_set_upstream_scheme
-    ngx_lua_set_upstream_request_method = C.ngx_http_lua_set_upstream_request_method
+    ngx_lua_set_upstream_method = C.ngx_http_lua_set_upstream_method
 
 elseif is_stream then
     ffi.cdef[[
@@ -52,7 +52,7 @@ elseif is_stream then
     ngx_lua_update_upstream_state = C.ngx_stream_lua_update_upstream_state
     -- not supported in stream subsystem
     ngx_lua_set_upstream_scheme = nil
-    ngx_lua_set_upstream_request_method = nil
+    ngx_lua_set_upstream_method = nil
 end
 
 
@@ -152,14 +152,14 @@ function _M.set_upstream_scheme(scheme)
 end
 
 
--- must add config `set $upstream_request_method "";` before use this function in stream subsystem
-function _M.set_upstream_request_method(method)
+-- must add config `set $upstream_method "";` before use this function in stream subsystem
+function _M.set_upstream_method(method)
     if type(method) ~= "string" then
         return nil, "method must be a string"
     end
 
     if is_stream then
-        ngx_var.upstream_request_method = method
+        ngx_var.upstream_method = method
         return true
     end
 
@@ -168,14 +168,14 @@ function _M.set_upstream_request_method(method)
         return nil, "no request found"
     end
 
-    if not ngx_lua_set_upstream_request_method then
+    if not ngx_lua_set_upstream_method then
         return nil, "not supported in stream subsystem"
     end
 
-    local rc = ngx_lua_set_upstream_request_method(r, method, #method)
+    local rc = ngx_lua_set_upstream_method(r, method, #method)
 
     if rc == NGX_ERROR then
-        return nil, "error while setting upstream request method"
+        return nil, "error while setting upstream method"
     end
 
     return true
