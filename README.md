@@ -55,13 +55,13 @@ This module can be installed just like any ordinary Nginx C module, using the
 Copy the Lua library file into your OpenResty/Nginx Lua path:
 
 ```shell
-cp lualib/resty/upstream_state.lua /path/to/openresty/lualib/resty/
+cp lualib/resty/upstream/state.lua /path/to/openresty/lualib/resty/upstream/
 ```
 
 Then require it in your Lua code:
 
 ```lua
-local upstream_state = require("resty.upstream_state")
+local upstream_state = require("resty.upstream.state")
 ```
 
 
