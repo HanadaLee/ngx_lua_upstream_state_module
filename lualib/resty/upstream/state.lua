@@ -18,17 +18,17 @@ if is_http then
     ffi.cdef[[
     typedef intptr_t        ngx_int_t;
     ngx_int_t ngx_http_lua_push_upstream_state(ngx_http_request_t *r,
-        const u_char *addr, size_t addr_len, ngx_int_t status,
-        ngx_msec_int_t connect_time_ms, ngx_msec_int_t header_time_ms,
-        ngx_msec_int_t start_msec, ngx_msec_int_t ssl_start_msec,
-        ngx_msec_int_t send_start_msec, ngx_msec_int_t send_end_msec);
+        const char *addr, size_t addr_len, ngx_int_t status,
+        ngx_int_t connect_time_ms, ngx_int_t header_time_ms,
+        ngx_int_t start_msec, ngx_int_t ssl_start_msec,
+        ngx_int_t send_start_msec, ngx_int_t send_end_msec);
     ngx_int_t ngx_http_lua_update_upstream_state(ngx_http_request_t *r,
-        ngx_msec_int_t response_time_ms, off_t response_length,
-        off_t bytes_received);
+        ngx_int_t response_time_ms, intptr_t response_length,
+        intptr_t bytes_received);
     ngx_int_t ngx_http_lua_set_upstream_scheme(ngx_http_request_t *r,
-        const u_char *scheme, size_t scheme_len);
+        const char *scheme, size_t scheme_len);
     ngx_int_t ngx_http_lua_set_upstream_request_method(ngx_http_request_t *r,
-        const u_char *method, size_t method_len);
+        const char *method, size_t method_len);
     ]]
 
     ngx_lua_push_upstream_state = C.ngx_http_lua_push_upstream_state
@@ -41,11 +41,11 @@ elseif is_stream then
     typedef intptr_t        ngx_int_t;
     ngx_int_t ngx_stream_lua_push_upstream_state(ngx_stream_lua_request_t *r,
         const u_char *addr, size_t addr_len, ngx_int_t status,
-        ngx_msec_int_t connect_time_ms, ngx_msec_int_t first_byte_time_ms,
-        ngx_msec_int_t start_msec, ngx_msec_int_t ssl_start_msec,
-        ngx_msec_int_t send_start_msec, ngx_msec_int_t send_end_msec);
+        ngx_int_t connect_time_ms, ngx_int_t first_byte_time_ms,
+        ngx_int_t start_msec, ngx_int_t ssl_start_msec,
+        ngx_int_t send_start_msec, ngx_int_t send_end_msec);
     ngx_int_t ngx_stream_lua_update_upstream_state(ngx_stream_lua_request_t *r,
-        ngx_msec_int_t session_time_ms, off_t bytes_sent, off_t bytes_received);
+        ngx_int_t session_time_ms, intptr_t bytes_sent, intptr_t bytes_received);
     ]]
 
     ngx_lua_push_upstream_state = C.ngx_stream_lua_push_upstream_state
