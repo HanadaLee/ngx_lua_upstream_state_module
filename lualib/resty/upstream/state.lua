@@ -40,7 +40,7 @@ elseif is_stream then
     ffi.cdef[[
     typedef intptr_t        ngx_int_t;
     ngx_int_t ngx_stream_lua_push_upstream_state(ngx_stream_lua_request_t *r,
-        const u_char *addr, size_t addr_len, ngx_int_t status,
+        const char *addr, size_t addr_len, ngx_int_t status,
         ngx_int_t connect_time_ms, ngx_int_t first_byte_time_ms,
         ngx_int_t start_msec, ngx_int_t ssl_start_msec,
         ngx_int_t send_start_msec, ngx_int_t send_end_msec);
