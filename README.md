@@ -14,25 +14,18 @@ Table of Contents
   - [push\_upstream\_state](#push_upstream_state)
   - [update\_upstream\_state](#update_upstream_state)
   - [set\_upstream\_scheme](#set_upstream_scheme)
-  - [set\_upstream\_request\_method](#set_upstream_request_method)
+  - [set\_upstream\_method](#set_upstream_method)
 - [License](#license)
 
 
 Description
 ===========
-This module provides C functions for managing upstream peer state entries in
-Nginx's `upstream_states` array and some members of `upstream`.
-It is designed to be called from LuaJIT FFI by lua modules to populate timing,
-status, and peer address information for each upstream attempt.
-When using Lua consocket instead of nginx upstream for upstream processing
-with this module, Lua modules can populate the standard `$upstream_*` variables
-(e.g. `$upstream_addr`, `$upstream_status`, `$upstream_response_time`).
+This module provides C functions for managing upstream peer state entries in Nginx's `upstream_states` array and some members of `upstream`. It is designed to be called from LuaJIT FFI by lua modules to populate timing, status, and peer address information for each upstream attempt. When using Lua consocket instead of nginx upstream for upstream processing with this module, Lua modules can populate the standard `$upstream_*` variables (e.g. `$upstream_addr`, `$upstream_status`, `$upstream_response_time`).
 
 It supports both `http` and `stream` subsystems.
 
 The original work of this patch came from: https://github.com/api7/apisix-nginx-module/commit/555c64492b4f7cd8442f79c87456c7f1fb675f73
-Some fields are only available after using the nginx core patch: https://git.hanada.info/hanada/openresty/-/tree/main/patches. In the following description,
-it will be referred to as `nginx core patch`.
+Some fields are only available after using the nginx core patch: https://git.hanada.info/hanada/openresty/-/tree/main/patches. In the following description, it will be referred to as `nginx core patch`.
 
 Install
 =======
@@ -45,8 +38,7 @@ patch -p1 < nginx-ext_1.xx.x+.patch
 
 The patch is from https://git.hanada.info/hanada/openresty/-/tree/main/patches
 
-This module can be installed just like any ordinary Nginx C module, using the
-`--add-module` configuration option:
+This module can be installed just like any ordinary Nginx C module, using the `--add-module` configuration option:
 
 ```shell
 ./configure --add-module=/path/to/ngx_lua_upstream_state_module \
@@ -70,45 +62,45 @@ Lua Methods
 
 push\_upstream\_state
 ---------------------
-**syntax:** *push_upstream_state(addr, addr_len, status, connect_time_ms, header_time_ms [, start_msec [, ssl_start_msec [, send_start_msec [, send_end_msec]]]])*
+**syntax:** *push_upstream_state(opts)*
 
 **subsystems:** *http*, *stream*
 
-Creates and pushes a new upstream state entry into the request's (or session's)
-`upstream_states` array. Call this at the beginning of each upstream attempt.
+Creates and pushes a new upstream state entry into the request's (or session's) `upstream_states` array. Call this at the beginning of each upstream attempt.
 
-Parameters:
+The `opts` parameter is a table with the following fields:
 
 - `addr`: peer address string (e.g. `"192.168.1.1:8080"`).
-- `addr_len`: length of the address string.
-- `status`: response status. Only effective in http subsystem or after applying the core patch.
-- `connect_time_ms`: time spent establishing the TCP/TLS connection, in milliseconds.
-- `header_time_ms` (http) / `first_byte_time_ms` (stream): time to receive the first byte of the response, in milliseconds.
-- `start_msec`: absolute start time in milliseconds. Only effective after applying the core patch.
-- `ssl_start_msec`: absolute time when SSL handshake started. Only effective after applying the core patch.
-- `send_start_msec`: absolute time when request body send started. Only effective after applying the core patch.
-- `send_end_msec`: absolute time when request body send finished. Only effective after applying the core patch.
+- `status`: response status. Only effective in http subsystem or after applying the core patch. A value of `0` in `update` means "do not overwrite". Defaults to `0`.
+- `connect_time`: time spent establishing the TCP/TLS connection, in milliseconds. Defaults to `-1`.
+- `header_time` (http): time to receive header of the response, in milliseconds. Defaults to `-1`.
+- `first_byte_time` (stream): time to receive the first byte of the connection, in milliseconds. Defaults to `-1`.
+- `start_msec`: absolute start time in milliseconds (monotonic). Only effective after applying the core patch. Defaults to `-1`.
+- `ssl_start_msec` (http): absolute time when SSL handshake started (monotonic). Only effective after applying the core patch. Defaults to `-1`.
+- `send_start_msec` (http): absolute time when request send started (monotonic). Only effective after applying the core patch. Defaults to `-1`.
+- `send_end_msec` (http): absolute time when request send finished (monotonic). Only effective after applying the core patch. Defaults to `-1`.
+- `response_time` (http): total response time in milliseconds. Defaults to `-1`.
+- `session_time` (stream): total session time in milliseconds. Defaults to `-1`.
+- `response_length` (http): response body length in bytes. Defaults to `-1`.
+- `bytes_received`: bytes received from the upstream. Defaults to `-1`.
+- `bytes_sent`: bytes sent to the upstream. Defaults to `-1`.
 
 All timing values default to `-1` (unknown), which renders as `"-"` in Nginx log templates.
-The `status` field is only available in http subsystem or after applying the core patch.
+
+All absolute time fields (`start_msec`, `ssl_start_msec`, `send_start_msec`, `send_end_msec`) use monotonic time — milliseconds elapsed since system boot, not epoch timestamps. Use `monotonic_msec()` from [lua-resty-core's resty.core.time](https://github.com/openresty/lua-resty-core/blob/master/lib/resty/core/time.md) to obtain this value.
 
 [Back to TOC](#table-of-contents)
 
 
 update\_upstream\_state
 -----------------------
-**syntax:** *update_upstream_state(response_time_ms, response_length[, bytes_sent])*
+**syntax:** *update_upstream_state(opts)*
 
 **subsystems:** *http*, *stream*
 
-Updates the last upstream state entry with the final response metrics. Call
-this after the upstream response has been fully received.
+Updates the last upstream state entry. Any field can be set or updated at this stage. Call this after the upstream response has been fully received.
 
-Parameters:
-
-- `response_time_ms` (http) / `session_time_ms` (stream): total response time in milliseconds. Pass `-1` if unknown.
-- `response_length` (http) / `bytes_received` (stream): response body length in bytes or bytes received. Pass `-1` if unknown.
-- `bytes_sent` (stream): bytes sent to the upstream. Pass `-1` if unknown.
+The `opts` parameter is a table with the same fields as `push_upstream_state`. Fields passed as `-1` (or empty `addr` / `status = 0`) are left unchanged.
 
 [Back to TOC](#table-of-contents)
 
@@ -119,20 +111,18 @@ set\_upstream\_scheme
 
 **subsystems:** *http*, *stream*
 
-Sets the scheme (e.g. `"http"`, `"https"`, `mqtt`) on the upstream structure.
-The scheme string is automatically suffixed with `"://"`.
+Sets the scheme (e.g. `"http"`, `"https"`, `mqtt`) on the upstream structure. The scheme string is automatically suffixed with `"://"`.
 
 Parameters:
 
 - `scheme`: scheme name (without `"://"`).
 
-The function is only available after applying the core patch in http subsystem.
-Must add config `set $upstream_scheme "";` before use this function in stream subsystem.
+The function is only available after applying the core patch in http subsystem. Must add config `set $upstream_scheme "";` before use this function in stream subsystem.
 
 
-set\_upstream\_request\_method
+set_upstream_method
 ------------------------
-**syntax:** *set_upstream_request_method(method)*
+**syntax:** *set_upstream_method(method)*
 
 **subsystems:** *http*, *stream*
 
@@ -142,8 +132,7 @@ Parameters:
 
 - `method`: method name.
 
-The function is only available after applying the core patch in http subsystem.
-Must add config `set $upstream_request_method "";` before use this function in stream subsystem.
+The function is only available after applying the core patch in http subsystem. Must add config `set $upstream_method "";` before use this function in stream subsystem.
 
 [Back to TOC](#table-of-contents)
 

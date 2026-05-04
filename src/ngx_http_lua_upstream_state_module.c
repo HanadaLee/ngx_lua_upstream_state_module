@@ -35,12 +35,68 @@ ngx_module_t  ngx_http_lua_upstream_state_module = {
 };
 
 
+static void
+ngx_http_lua_set_upstream_state_fields(ngx_http_upstream_state_t *state,
+    ngx_msec_int_t start_msec, ngx_msec_int_t ssl_start_msec,
+    ngx_msec_int_t send_start_msec, ngx_msec_int_t send_end_msec,
+    ngx_msec_int_t connect_time_ms, ngx_msec_int_t header_time_ms,
+    ngx_msec_int_t response_time_ms, off_t response_length,
+    off_t bytes_received, off_t bytes_sent)
+{
+#if (NGX_RESTY_EXT)
+    if (start_msec >= 0) {
+        state->start_msec = (ngx_msec_t) start_msec;
+    }
+
+#if (NGX_HTTP_SSL)
+    if (ssl_start_msec >= 0) {
+        state->ssl_start_msec = (ngx_msec_t) ssl_start_msec;
+    }
+#endif
+
+    if (send_start_msec >= 0) {
+        state->send_start_msec = (ngx_msec_t) send_start_msec;
+    }
+
+    if (send_end_msec >= 0) {
+        state->send_end_msec = (ngx_msec_t) send_end_msec;
+    }
+#endif
+
+    if (connect_time_ms >= 0) {
+        state->connect_time = (ngx_msec_t) connect_time_ms;
+    }
+
+    if (header_time_ms >= 0) {
+        state->header_time = (ngx_msec_t) header_time_ms;
+    }
+
+    if (response_time_ms >= 0) {
+        state->response_time = (ngx_msec_t) response_time_ms;
+    }
+
+    if (response_length >= 0) {
+        state->response_length = response_length;
+    }
+
+    if (bytes_received >= 0) {
+        state->bytes_received = bytes_received;
+    }
+
+    if (bytes_sent >= 0) {
+        state->bytes_sent = bytes_sent;
+    }
+}
+
+
 ngx_int_t
 ngx_http_lua_push_upstream_state(ngx_http_request_t *r,
     const u_char *addr, size_t addr_len, ngx_int_t status,
     ngx_msec_int_t connect_time_ms, ngx_msec_int_t header_time_ms,
     ngx_msec_int_t start_msec, ngx_msec_int_t ssl_start_msec,
-    ngx_msec_int_t send_start_msec, ngx_msec_int_t send_end_msec)
+    ngx_msec_int_t send_start_msec, ngx_msec_int_t send_end_msec,
+    ngx_msec_int_t response_time_ms, off_t response_length,
+    off_t bytes_received, off_t bytes_sent)
 {
     ngx_http_upstream_state_t  *state;
     ngx_str_t                  *peer;
@@ -48,7 +104,7 @@ ngx_http_lua_push_upstream_state(ngx_http_request_t *r,
 
     if (r->upstream_states == NULL) {
         r->upstream_states = ngx_array_create(r->pool, 1,
-                                              sizeof(ngx_http_upstream_state_t));
+                                            sizeof(ngx_http_upstream_state_t));
         if (r->upstream_states == NULL) {
             return NGX_ERROR;
         }
@@ -96,33 +152,10 @@ ngx_http_lua_push_upstream_state(ngx_http_request_t *r,
 
     state->status = status;
 
-#if (NGX_RESTY_EXT)
-    if (start_msec >= 0) {
-        state->start_msec = (ngx_msec_t) start_msec;
-    }
-
-#if (NGX_HTTP_SSL)
-    if (ssl_start_msec >= 0) {
-        state->ssl_start_msec = (ngx_msec_t) ssl_start_msec;
-    }
-#endif
-
-    if (send_start_msec >= 0) {
-        state->send_start_msec = (ngx_msec_t) send_start_msec;
-    }
-
-    if (send_end_msec >= 0) {
-        state->send_end_msec = (ngx_msec_t) send_end_msec;
-    }
-#endif
-
-    if (connect_time_ms >= 0) {
-        state->connect_time = (ngx_msec_t) connect_time_ms;
-    }
-
-    if (header_time_ms >= 0) {
-        state->header_time = (ngx_msec_t) header_time_ms;
-    }
+    ngx_http_lua_set_upstream_state_fields(state,
+        start_msec, ssl_start_msec, send_start_msec, send_end_msec,
+        connect_time_ms, header_time_ms, response_time_ms,
+        response_length, bytes_received, bytes_sent);
 
     return NGX_OK;
 }
@@ -130,10 +163,16 @@ ngx_http_lua_push_upstream_state(ngx_http_request_t *r,
 
 ngx_int_t
 ngx_http_lua_update_upstream_state(ngx_http_request_t *r,
+    const u_char *addr, size_t addr_len, ngx_int_t status,
+    ngx_msec_int_t connect_time_ms, ngx_msec_int_t header_time_ms,
+    ngx_msec_int_t start_msec, ngx_msec_int_t ssl_start_msec,
+    ngx_msec_int_t send_start_msec, ngx_msec_int_t send_end_msec,
     ngx_msec_int_t response_time_ms, off_t response_length,
-    off_t bytes_received)
+    off_t bytes_received, off_t bytes_sent)
 {
     ngx_http_upstream_state_t  *state;
+    ngx_str_t                  *peer;
+    u_char                     *p;
 
     if (r->upstream_states == NULL || r->upstream_states->nelts == 0) {
         return NGX_ERROR;
@@ -142,19 +181,36 @@ ngx_http_lua_update_upstream_state(ngx_http_request_t *r,
     state = (ngx_http_upstream_state_t *) r->upstream_states->elts
             + (r->upstream_states->nelts - 1);
 
-    if (response_time_ms >= 0) {
-        state->response_time = (ngx_msec_t) response_time_ms;
+    if (addr != NULL && addr_len > 0) {
+        if (state->peer == NULL
+            || state->peer->len != addr_len
+            || ngx_memcmp(state->peer->data, addr, addr_len) != 0)
+        {
+            peer = ngx_palloc(r->pool, sizeof(ngx_str_t));
+            if (peer == NULL) {
+                return NGX_ERROR;
+            }
+
+            p = ngx_pnalloc(r->pool, addr_len);
+            if (p == NULL) {
+                return NGX_ERROR;
+            }
+
+            ngx_memcpy(p, addr, addr_len);
+            peer->data = p;
+            peer->len = addr_len;
+            state->peer = peer;
+        }
     }
 
-    if (response_length >= 0) {
-        state->response_length = response_length;
+    if (status != 0) {
+        state->status = status;
     }
 
-#if 0
-    if (bytes_received >= 0) {
-        state->bytes_received = bytes_received;
-    }
-#endif
+    ngx_http_lua_set_upstream_state_fields(state,
+        start_msec, ssl_start_msec, send_start_msec, send_end_msec,
+        connect_time_ms, header_time_ms, response_time_ms,
+        response_length, bytes_received, bytes_sent);
 
     return NGX_OK;
 }

@@ -21,10 +21,16 @@ if is_http then
         const char *addr, size_t addr_len, ngx_int_t status,
         ngx_int_t connect_time_ms, ngx_int_t header_time_ms,
         ngx_int_t start_msec, ngx_int_t ssl_start_msec,
-        ngx_int_t send_start_msec, ngx_int_t send_end_msec);
-    ngx_int_t ngx_http_lua_update_upstream_state(ngx_http_request_t *r,
+        ngx_int_t send_start_msec, ngx_int_t send_end_msec,
         ngx_int_t response_time_ms, intptr_t response_length,
-        intptr_t bytes_received);
+        intptr_t bytes_received, intptr_t bytes_sent);
+    ngx_int_t ngx_http_lua_update_upstream_state(ngx_http_request_t *r,
+        const char *addr, size_t addr_len, ngx_int_t status,
+        ngx_int_t connect_time_ms, ngx_int_t header_time_ms,
+        ngx_int_t start_msec, ngx_int_t ssl_start_msec,
+        ngx_int_t send_start_msec, ngx_int_t send_end_msec,
+        ngx_int_t response_time_ms, intptr_t response_length,
+        intptr_t bytes_received, intptr_t bytes_sent);
     ngx_int_t ngx_http_lua_set_upstream_scheme(ngx_http_request_t *r,
         const char *scheme, size_t scheme_len);
     ngx_int_t ngx_http_lua_set_upstream_method(ngx_http_request_t *r,
@@ -43,9 +49,16 @@ elseif is_stream then
         const char *addr, size_t addr_len, ngx_int_t status,
         ngx_int_t connect_time_ms, ngx_int_t first_byte_time_ms,
         ngx_int_t start_msec, ngx_int_t ssl_start_msec,
-        ngx_int_t send_start_msec, ngx_int_t send_end_msec);
+        ngx_int_t send_start_msec, ngx_int_t send_end_msec,
+        ngx_int_t session_time_ms, intptr_t response_length,
+        intptr_t bytes_received, intptr_t bytes_sent);
     ngx_int_t ngx_stream_lua_update_upstream_state(ngx_stream_lua_request_t *r,
-        ngx_int_t session_time_ms, intptr_t bytes_sent, intptr_t bytes_received);
+        const char *addr, size_t addr_len, ngx_int_t status,
+        ngx_int_t connect_time_ms, ngx_int_t first_byte_time_ms,
+        ngx_int_t start_msec, ngx_int_t ssl_start_msec,
+        ngx_int_t send_start_msec, ngx_int_t send_end_msec,
+        ngx_int_t session_time_ms, intptr_t response_length,
+        intptr_t bytes_received, intptr_t bytes_sent);
     ]]
 
     ngx_lua_push_upstream_state = C.ngx_stream_lua_push_upstream_state
@@ -59,7 +72,7 @@ end
 local _M = {}
 
 
-function _M.push_upstream_state(opts)
+local function _call_upstream_state(c_func, opts, action)
     if type(opts) ~= "table" then
         return nil, "opts must be a table"
     end
@@ -76,8 +89,9 @@ function _M.push_upstream_state(opts)
 
     local addr_len = addr and #addr or 0
     local header_time_ms = is_http and opts.header_time or opts.first_byte_time
+    local response_time = opts.response_time or opts.session_time
 
-    local rc = ngx_lua_push_upstream_state(
+    local rc = c_func(
         r,
         addr, addr_len,
         opts.status or 0,
@@ -86,43 +100,31 @@ function _M.push_upstream_state(opts)
         opts.start_msec or -1,
         opts.ssl_start_msec or -1,
         opts.send_start_msec or -1,
-        opts.send_end_msec or -1)
+        opts.send_end_msec or -1,
+        response_time or -1,
+        opts.response_length or -1,
+        opts.bytes_received or -1,
+        opts.bytes_sent or -1)
 
     if rc == NGX_ERROR then
-        return nil, "error while pushing upstream state"
+        return nil, "error while " .. action .. " upstream state"
     end
 
     return true
+end
+
+
+function _M.push_upstream_state(opts)
+    return _call_upstream_state(ngx_lua_push_upstream_state, opts, "pushing")
 end
 
 
 function _M.update_upstream_state(opts)
-    if type(opts) ~= "table" then
-        return nil, "opts must be a table"
-    end
-
-    local r = get_request()
-    if not r then
-        return nil, "no request found"
-    end
-
-    local response_length = is_http and opts.response_length or opts.bytes_received
-
-    local rc = ngx_lua_update_upstream_state(
-        r,
-        opts.response_time or -1,
-        response_length or -1,
-        opts.bytes_sent or -1)
-
-    if rc == NGX_ERROR then
-        return nil, "error while updating upstream state"
-    end
-
-    return true
+    return _call_upstream_state(ngx_lua_update_upstream_state, opts, "updating")
 end
 
 
--- must add config `set $upstream_scheme "";` before use this function in stream subsystem
+-- must add config 'set $upstream_scheme "";' before use this function in stream subsystem
 function _M.set_upstream_scheme(scheme)
     if type(scheme) ~= "string" then
         return nil, "scheme must be a string"
@@ -152,7 +154,7 @@ function _M.set_upstream_scheme(scheme)
 end
 
 
--- must add config `set $upstream_method "";` before use this function in stream subsystem
+-- must add config 'set $upstream_method "";' before use this function in stream subsystem
 function _M.set_upstream_method(method)
     if type(method) ~= "string" then
         return nil, "method must be a string"
