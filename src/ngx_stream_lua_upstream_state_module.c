@@ -57,10 +57,6 @@ ngx_stream_lua_set_upstream_state_fields(ngx_stream_upstream_state_t *state,
         state->response_time = (ngx_msec_t) session_time_ms;
     }
 
-    if (response_length >= 0) {
-        state->response_length = response_length;
-    }
-
     if (bytes_received >= 0) {
         state->bytes_received = bytes_received;
     }
