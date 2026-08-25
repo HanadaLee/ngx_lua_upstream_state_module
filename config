@@ -20,7 +20,7 @@ if [ $HTTP != NO ]; then
 
 fi
 
-if [ $STREAM != NO -a $nginx_version -gt 1011001 ]; then
+if [ $STREAM != NO ]; then
 
     ngx_module_type=STREAM
     ngx_module_name=ngx_stream_lua_upstream_state_module
