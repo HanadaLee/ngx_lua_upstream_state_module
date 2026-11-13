@@ -29,6 +29,8 @@ Some fields are only available after using the nginx core patch: https://git.han
 
 Install
 =======
+Build with `--add-module`. Dynamic modules and a dynamic Stream subsystem are not supported.
+
 Some fields are only available after applying the nginx core patch:
 
 ```shell
