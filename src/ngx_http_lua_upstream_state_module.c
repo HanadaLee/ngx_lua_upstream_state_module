@@ -43,7 +43,7 @@ ngx_http_lua_set_upstream_state_fields(ngx_http_upstream_state_t *state,
     ngx_msec_int_t response_time_ms, off_t response_length,
     off_t bytes_received, off_t bytes_sent)
 {
-#if (NGX_RESTY_EXT)
+#if (NGX_HTTP_UPSTREAM_TIMING)
     if (start_msec >= 0) {
         state->start_msec = (ngx_msec_t) start_msec;
     }
@@ -118,7 +118,7 @@ ngx_http_lua_push_upstream_state(ngx_http_request_t *r,
     ngx_memzero(state, sizeof(ngx_http_upstream_state_t));
 
     /* unset timings render as "-" in logs, not "0.000" */
-#if (NGX_RESTY_EXT)
+#if (NGX_HTTP_UPSTREAM_TIMING)
     state->start_msec = (ngx_msec_t) -1;
 
 #if (NGX_HTTP_SSL)

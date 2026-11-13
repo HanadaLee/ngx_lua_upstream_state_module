@@ -33,6 +33,7 @@ export NGX_STREAM_LUA_LOC="$module_root/.ci/stream-lua-nginx-module"
 patch -d "$NGX_STREAM_LUA_LOC" -p1 --forward \
     < "$module_root/.ci/openresty/patches/ngx_stream_lua_module-expose_request_struct_0.0.18RC2+.patch"
 export TEST_NGINX_RESTY_LUALIB="$dependency_prefix/share/lua/5.1"
+export LUA_PATH="$TEST_NGINX_RESTY_LUALIB/?.lua;;"
 mkdir -p "$TEST_NGINX_RESTY_LUALIB"
 cp -R "$module_root/.ci/lua-resty-core/lib/." "$TEST_NGINX_RESTY_LUALIB/"
 cp -R "$module_root/.ci/lua-resty-lrucache/lib/." "$TEST_NGINX_RESTY_LUALIB/"
@@ -45,8 +46,14 @@ configure_args+=(--add-module="$module_root/.ci/lua-nginx-module")
 configure_args+=(--add-module="$module_root/.ci/stream-lua-nginx-module")
 configure_args+=(--add-module="$module_root")
 
+for module in ngx_http_extra_variables_module ngx_stream_extra_variables_module; do
+    bash "$module_root/.ci/$module/util/apply-nginx-patches.sh" "$nginx_source"
+done
+
 cd "$nginx_source"
-sh ./configure "${configure_args[@]}"
+configure=./configure
+[[ -f "$configure" ]] || configure=auto/configure
+sh "$configure" "${configure_args[@]}"
 make -j"$build_jobs"
 
 export TEST_NGINX_BINARY="$nginx_source/objs/nginx"

@@ -39,7 +39,7 @@ ngx_stream_lua_set_upstream_state_fields(ngx_stream_upstream_state_t *state,
     ngx_msec_int_t first_byte_time_ms, ngx_msec_int_t session_time_ms,
     off_t response_length, off_t bytes_received, off_t bytes_sent)
 {
-#if (NGX_RESTY_EXT)
+#if (NGX_STREAM_UPSTREAM_TIMING)
     if (start_msec >= 0) {
         state->start_msec = (ngx_msec_t) start_msec;
     }
@@ -103,7 +103,7 @@ ngx_stream_lua_push_upstream_state(ngx_stream_lua_request_t *r,
 
     /* unset timings render as "-" in logs, not "0.000" */
 
-#if (NGX_RESTY_EXT)
+#if (NGX_STREAM_UPSTREAM_TIMING)
     state->start_msec = (ngx_msec_t) -1;
 #endif
 
