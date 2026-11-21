@@ -119,7 +119,7 @@ Parameters:
 
 - `scheme`: scheme name (without `"://"`).
 
-The function is only available after applying the core patch in http subsystem. Must add config `set $upstream_scheme "";` before use this function in stream subsystem.
+In Stream, define `set $upstream_scheme "";` before calling this function.
 
 
 set_upstream_method
@@ -134,7 +134,7 @@ Parameters:
 
 - `method`: method name.
 
-The function is only available after applying the core patch in http subsystem. Must add config `set $upstream_method "";` before use this function in stream subsystem.
+In Stream, define `set $upstream_method "";` before calling this function.
 
 [Back to TOC](#table-of-contents)
 

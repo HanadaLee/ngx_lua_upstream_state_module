@@ -216,8 +216,6 @@ ngx_http_lua_update_upstream_state(ngx_http_request_t *r,
 }
 
 
-#if (NGX_RESTY_EXT)
-
 ngx_int_t
 ngx_http_lua_set_upstream_scheme(ngx_http_request_t *r,
     const u_char *scheme, size_t scheme_len)
@@ -273,22 +271,3 @@ ngx_http_lua_set_upstream_method(ngx_http_request_t *r,
 
     return NGX_OK;
 }
-
-#else
-
-ngx_int_t
-ngx_http_lua_set_upstream_scheme(ngx_http_request_t *r,
-    const u_char *scheme, size_t scheme_len)
-{
-    return NGX_OK;
-}
-
-
-ngx_int_t
-ngx_http_lua_set_upstream_request_method(ngx_http_request_t *r,
-    const u_char *method, size_t method_len)
-{
-    return NGX_OK;
-}
-
-#endif

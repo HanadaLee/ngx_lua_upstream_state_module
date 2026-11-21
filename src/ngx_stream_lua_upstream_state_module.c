@@ -128,7 +128,7 @@ ngx_stream_lua_push_upstream_state(ngx_stream_lua_request_t *r,
         state->peer = peer;
     }
 
-#if (NGX_RESTY_EXT)
+#if (NGX_EXT)
     state->status = status;
 #endif
 
@@ -188,7 +188,7 @@ ngx_stream_lua_update_upstream_state(ngx_stream_lua_request_t *r,
         }
     }
 
-#if (NGX_RESTY_EXT)
+#if (NGX_EXT)
     if (status != 0) {
         state->status = status;
     }
