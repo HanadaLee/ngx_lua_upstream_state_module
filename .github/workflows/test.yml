@@ -37,24 +37,18 @@ jobs:
           path: .ci/nginx
           persist-credentials: false
 
-      - name: Check out HTTP core support
+      - name: Check out HTTP extra variables module
         uses: actions/checkout@v6
         with:
           repository: HanadaLee/ngx_http_extra_variables_module
           path: .ci/ngx_http_extra_variables_module
-          sparse-checkout: |
-            patches
-            util/apply-nginx-patches.sh
           persist-credentials: false
 
-      - name: Check out Stream core support
+      - name: Check out Stream extra variables module
         uses: actions/checkout@v6
         with:
           repository: HanadaLee/ngx_stream_extra_variables_module
           path: .ci/ngx_stream_extra_variables_module
-          sparse-checkout: |
-            patches
-            util/apply-nginx-patches.sh
           persist-credentials: false
 
       - name: Check out luajit2

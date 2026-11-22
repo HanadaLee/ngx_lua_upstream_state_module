@@ -44,11 +44,13 @@ configure_args+=("--with-ld-opt=-Wl,-rpath,$LUAJIT_LIB")
 
 configure_args+=(--add-module="$module_root/.ci/lua-nginx-module")
 configure_args+=(--add-module="$module_root/.ci/stream-lua-nginx-module")
-configure_args+=(--add-module="$module_root")
 
 for module in ngx_http_extra_variables_module ngx_stream_extra_variables_module; do
     bash "$module_root/.ci/$module/util/apply-nginx-patches.sh" "$nginx_source"
+    configure_args+=(--add-module="$module_root/.ci/$module")
 done
+
+configure_args+=(--add-module="$module_root")
 
 cd "$nginx_source"
 configure=./configure

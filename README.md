@@ -40,6 +40,8 @@ patch -p1 < nginx-ext_1.xx.x+.patch
 
 The patch is from https://git.hanada.info/hanada/openresty/-/tree/main/patches
 
+For absolute upstream timing fields, build the HTTP or Stream extra variables module for the corresponding subsystem and apply its bundled nginx patch before running `configure`.
+
 This module can be installed just like any ordinary Nginx C module, using the `--add-module` configuration option:
 
 ```shell
@@ -77,10 +79,10 @@ The `opts` parameter is a table with the following fields:
 - `connect_time`: time spent establishing the TCP/TLS connection, in milliseconds. Defaults to `-1`.
 - `header_time` (http): time to receive header of the response, in milliseconds. Defaults to `-1`.
 - `first_byte_time` (stream): time to receive the first byte of the connection, in milliseconds. Defaults to `-1`.
-- `start_msec`: absolute start time in milliseconds (monotonic). Only effective after applying the core patch. Defaults to `-1`.
-- `ssl_start_msec` (http): absolute time when SSL handshake started (monotonic). Only effective after applying the core patch. Defaults to `-1`.
-- `send_start_msec` (http): absolute time when request send started (monotonic). Only effective after applying the core patch. Defaults to `-1`.
-- `send_end_msec` (http): absolute time when request send finished (monotonic). Only effective after applying the core patch. Defaults to `-1`.
+- `start_msec`: absolute start time in milliseconds (monotonic). Defaults to `-1`.
+- `ssl_start_msec` (http): absolute time when SSL handshake started (monotonic). Defaults to `-1`.
+- `send_start_msec` (http): absolute time when request send started (monotonic). Defaults to `-1`.
+- `send_end_msec` (http): absolute time when request send finished (monotonic). Defaults to `-1`.
 - `response_time` (http): total response time in milliseconds. Defaults to `-1`.
 - `session_time` (stream): total session time in milliseconds. Defaults to `-1`.
 - `response_length` (http): response body length in bytes. Defaults to `-1`.
